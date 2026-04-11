@@ -71,6 +71,8 @@
             if (activeCamera) {
                 activeCamera.style.filter = 'brightness(' + (brightness / 100) + ')';
             }
+
+            return brightness;
         }
 
         function setGestureStatus(text) {
@@ -87,10 +89,7 @@
             }
 
             var context = canvas.getContext('2d');
-            context.save();
             context.clearRect(0, 0, canvas.width, canvas.height);
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 var landmarks = results.multiHandLandmarks[0];
@@ -102,14 +101,12 @@
                 var thumbTip = landmarks[4];
                 var indexTip = landmarks[8];
                 context.beginPath();
-                context.moveTo((1 - thumbTip.x) * canvas.width, thumbTip.y * canvas.height);
-                context.lineTo((1 - indexTip.x) * canvas.width, indexTip.y * canvas.height);
+                context.moveTo(thumbTip.x * canvas.width, thumbTip.y * canvas.height);
+                context.lineTo(indexTip.x * canvas.width, indexTip.y * canvas.height);
                 context.strokeStyle = '#1e90ff';
                 context.lineWidth = 5;
                 context.stroke();
             }
-
-            context.restore();
 
             context.fillStyle = '#39ff14';
             context.font = 'bold 34px Segoe UI, sans-serif';
@@ -167,6 +164,7 @@
                     lastGestureCenter = null;
                     stillFrames = 0;
                     setGestureStatus('Status: No hand detected');
+                    clearOverlay();
                     return;
                 }
 
@@ -194,10 +192,11 @@
                 var pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
                 var targetBrightness = (pinchDistance - 0.03) / (0.30 - 0.03) * 100;
                 var nextBrightness = currentBrightness + (targetBrightness - currentBrightness) * 0.35;
+                var clampedBrightness = Math.max(0, Math.min(100, nextBrightness));
 
                 setGestureStatus('Status: Tracking');
-                applyBrightness(nextBrightness);
-                drawOverlay(results, nextBrightness);
+                var appliedBrightness = applyBrightness(clampedBrightness);
+                drawOverlay(results, appliedBrightness);
             });
 
             trackingActive = true;
