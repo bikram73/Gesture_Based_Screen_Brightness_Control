@@ -25,8 +25,8 @@
         <h1>Gesture Brightness Control</h1>
         <p class="instructions">Pinch your index finger and thumb to adjust screen brightness.</p>
         <button id="toggle-btn" class="btn btn-off" onclick="toggleCamera()" disabled>Waiting for Camera...</button>
+        <p id="agent-status" class="instructions" style="display:none; margin-top:-6px;"></p>
         <div class="video-container">
-            <img id="video-feed" data-src="/video_feed" width="640" height="480" alt="Waiting for camera permission...">
             <div id="browser-stage" class="camera-stage" style="display:none;">
                 <video id="browser-preview" class="camera-layer" width="640" height="480" autoplay playsinline muted></video>
                 <canvas id="overlay-canvas" class="camera-layer" width="640" height="480"></canvas>
@@ -35,17 +35,25 @@
     </div>
 
     <script>
+        const BRIGHTNESS_AGENT_URL = 'http://127.0.0.1:5055';
+
         let cameraStream = null;
-        let backendMode = true;
         let handTracker = null;
         let trackingActive = false;
         let trackingBusy = false;
         let lastGestureCenter = null;
         let stillFrames = 0;
         let currentBrightness = 100;
+        let lastSentBrightness = -1;
+        let lastSentBrightnessTime = 0;
+        let agentAvailable = false;
 
-        function getActiveCameraElement() {
-            return document.getElementById('browser-preview') || document.getElementById('video-feed');
+        function clampBrightness(value) {
+            return Math.max(0, Math.min(100, Number(value)));
+        }
+
+        function getPreviewElement() {
+            return document.getElementById('browser-preview');
         }
 
         function getOverlayCanvas() {
@@ -58,28 +66,30 @@
                 return;
             }
 
-            var context = canvas.getContext('2d');
-            context.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function setAgentStatus(message) {
+            var status = document.getElementById('agent-status');
+            if (!status) {
+                return;
+            }
+
+            status.style.display = 'block';
+            status.innerText = message;
         }
 
         function applyBrightness(value) {
-            var brightness = Math.max(0, Math.min(100, Number(value)));
-            var activeCamera = getActiveCameraElement();
+            var brightness = clampBrightness(value);
+            var preview = getPreviewElement();
 
             currentBrightness = brightness;
 
-            if (activeCamera) {
-                activeCamera.style.filter = 'brightness(' + (brightness / 100) + ')';
+            if (preview) {
+                preview.style.filter = 'brightness(' + (brightness / 100) + ')';
             }
 
             return brightness;
-        }
-
-        function setGestureStatus(text) {
-            var status = document.getElementById('gesture-status');
-            if (status) {
-                status.innerText = text;
-            }
         }
 
         function drawOverlay(results, brightness) {
@@ -136,11 +146,65 @@
             clearOverlay();
         }
 
+        async function sendBrightnessToAgent(brightness) {
+            var value = clampBrightness(brightness);
+            var now = Date.now();
+
+            if (value === lastSentBrightness && agentAvailable) {
+                return;
+            }
+
+            if (now - lastSentBrightnessTime < 60) {
+                return;
+            }
+
+            lastSentBrightness = value;
+            lastSentBrightnessTime = now;
+
+            try {
+                var response = await fetch(BRIGHTNESS_AGENT_URL + '/brightness', {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ brightness: value })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Agent rejected brightness update');
+                }
+
+                agentAvailable = true;
+                setAgentStatus('Local brightness agent connected. System brightness is active.');
+            } catch (error) {
+                agentAvailable = false;
+                setAgentStatus('Local brightness agent not detected. Run local_agent.py on this machine to control system brightness.');
+            }
+        }
+
+        async function probeAgent() {
+            try {
+                var response = await fetch(BRIGHTNESS_AGENT_URL + '/health', {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+
+                if (response.ok) {
+                    agentAvailable = true;
+                    setAgentStatus('Local brightness agent connected. System brightness is active.');
+                    return;
+                }
+            } catch (error) {
+                // handled below
+            }
+
+            agentAvailable = false;
+            setAgentStatus('Local brightness agent not detected. Run local_agent.py on this machine to control system brightness.');
+        }
+
         async function startHandTracking(videoElement) {
             if (trackingActive || !window.Hands) {
-                if (!window.Hands) {
-                    setGestureStatus('Status: Hand tracking unavailable');
-                }
                 return;
             }
 
@@ -163,7 +227,6 @@
                 if (!landmarks) {
                     lastGestureCenter = null;
                     stillFrames = 0;
-                    setGestureStatus('Status: No hand detected');
                     clearOverlay();
                     return;
                 }
@@ -185,18 +248,16 @@
                 lastGestureCenter = { x: centerX, y: centerY };
 
                 if (stillFrames >= 8) {
-                    setGestureStatus('Status: PAUSED');
                     return;
                 }
 
                 var pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
                 var targetBrightness = (pinchDistance - 0.03) / (0.30 - 0.03) * 100;
                 var nextBrightness = currentBrightness + (targetBrightness - currentBrightness) * 0.35;
-                var clampedBrightness = Math.max(0, Math.min(100, nextBrightness));
+                var appliedBrightness = applyBrightness(nextBrightness);
 
-                setGestureStatus('Status: Tracking');
-                var appliedBrightness = applyBrightness(clampedBrightness);
                 drawOverlay(results, appliedBrightness);
+                sendBrightnessToAgent(appliedBrightness);
             });
 
             trackingActive = true;
@@ -214,7 +275,7 @@
                     try {
                         await handTracker.send({ image: videoElement });
                     } catch (error) {
-                        setGestureStatus('Status: Tracking error');
+                        setAgentStatus('Hand tracking error.');
                     } finally {
                         trackingBusy = false;
                     }
@@ -226,114 +287,16 @@
             requestAnimationFrame(processFrame);
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            applyBrightness(currentBrightness);
-        });
-
-        function requestCameraAccess() {
-            var grantBtn = document.getElementById('grant-btn');
-            var spinner = document.getElementById('loading-spinner');
-
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                // Hide button and show spinner
-                grantBtn.style.display = 'none';
-                spinner.style.display = 'block';
-
-                navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function(stream) {
-                        // Remember the permission for next time
-                        localStorage.setItem('cameraPermissionGranted', 'true');
-                        
-                        // Hide the custom modal
-                        document.getElementById('camera-modal').style.display = 'none';
-
-                        startCameraMode(stream);
-                    })
-                    .catch(function(err) {
-                        // Clear the saved permission if it gets denied or revoked
-                        localStorage.removeItem('cameraPermissionGranted');
-                        
-                        alert("Camera permission denied. Please allow camera access in your browser to use this application.");
-                        document.getElementById('toggle-btn').innerText = 'Camera Blocked';
-                        document.getElementById('camera-modal').style.display = 'none';
-                        
-                        // Reset modal state in case they refresh or try again
-                        grantBtn.style.display = 'block';
-                        spinner.style.display = 'none';
-                    });
-            } else {
-                alert("Camera access is not supported by your browser.");
-            }
-        }
-
-        function startCameraMode(stream) {
-            var img = document.getElementById('video-feed');
-            var handled = false;
-            var fallbackTimer = null;
-
-            function finishWithBackend() {
-                if (handled) {
-                    return;
-                }
-                handled = true;
-                if (fallbackTimer) {
-                    clearTimeout(fallbackTimer);
-                }
-                backendMode = true;
-                stopHandTracking();
-                if (stream) {
-                    stream.getTracks().forEach(function(track) {
-                        track.stop();
-                    });
-                }
-                var stage = document.getElementById('browser-stage');
-                if (stage) {
-                    stage.style.display = 'none';
-                }
-                img.style.display = 'block';
-                img.src = img.getAttribute('data-src') + '?t=' + Date.now();
-                applyBrightness(currentBrightness);
-                var btn = document.getElementById('toggle-btn');
-                btn.innerText = 'Stop Camera';
-                btn.classList.remove('btn-off');
-                btn.removeAttribute('disabled');
-            }
-
-            function finishWithBrowserPreview() {
-                if (handled) {
-                    return;
-                }
-                handled = true;
-                if (fallbackTimer) {
-                    clearTimeout(fallbackTimer);
-                }
-                backendMode = false;
-                startBrowserPreview(stream);
-            }
-
-            // Try backend stream directly first. If image stream fails, use browser preview.
-            img.onload = finishWithBackend;
-            img.onerror = finishWithBrowserPreview;
-            img.src = img.getAttribute('data-src') + '?t=' + Date.now();
-
-            // If backend stream never resolves (neither load nor error), fallback automatically.
-            fallbackTimer = setTimeout(function() {
-                finishWithBrowserPreview();
-            }, 2200);
-        }
-
         function startBrowserPreview(stream) {
             var btn = document.getElementById('toggle-btn');
-            var video = document.getElementById('video-feed');
             var stage = document.getElementById('browser-stage');
-            var overlay = document.getElementById('overlay-canvas');
+            var preview = getPreviewElement();
+            var overlay = getOverlayCanvas();
 
             cameraStream = stream;
-            video.style.display = 'none';
             stage.style.display = 'block';
-
-            var preview = document.getElementById('browser-preview');
             preview.srcObject = stream;
+
             preview.onloadedmetadata = function() {
                 overlay.width = preview.videoWidth || 640;
                 overlay.height = preview.videoHeight || 480;
@@ -347,53 +310,58 @@
             btn.removeAttribute('disabled');
         }
 
-        function toggleCamera() {
-            var img = document.getElementById('video-feed');
-            var btn = document.getElementById('toggle-btn');
-            var preview = document.getElementById('browser-preview');
-            
-            if (backendMode && img.hasAttribute('src')) {
-                img.setAttribute('data-src', img.src);
-                img.removeAttribute('src');
-                btn.innerText = 'Start Camera';
-                btn.classList.add('btn-off');
-                applyBrightness(currentBrightness);
-            } else if (!backendMode && cameraStream) {
-                stopHandTracking();
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraStream = null;
-                if (preview) {
-                    preview.srcObject = null;
-                }
-                var stage = document.getElementById('browser-stage');
-                if (stage) {
-                    stage.style.display = 'none';
-                }
-                img.style.display = 'block';
-                btn.innerText = 'Start Camera';
-                btn.classList.add('btn-off');
-            } else {
-                if (backendMode) {
-                    img.src = img.getAttribute('data-src') + '?t=' + Date.now();
-                } else {
-                    if (cameraStream) {
-                        startBrowserPreview(cameraStream);
-                    } else {
-                        navigator.mediaDevices.getUserMedia({ video: true })
-                            .then(function(stream) {
-                                startBrowserPreview(stream);
-                            })
-                            .catch(function() {
-                                alert('Camera permission denied. Please allow camera access in your browser to use this application.');
-                            });
-                    }
-                    return;
-                }
-                applyBrightness(currentBrightness);
-                btn.innerText = 'Stop Camera';
-                btn.classList.remove('btn-off');
+        async function requestCameraAccess() {
+            var grantBtn = document.getElementById('grant-btn');
+            var spinner = document.getElementById('loading-spinner');
+
+            if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+                alert('Camera access is not supported by your browser.');
+                return;
+            }
+
+            grantBtn.style.display = 'none';
+            spinner.style.display = 'block';
+
+            try {
+                var stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                localStorage.setItem('cameraPermissionGranted', 'true');
+                document.getElementById('camera-modal').style.display = 'none';
+                startBrowserPreview(stream);
+            } catch (error) {
+                localStorage.removeItem('cameraPermissionGranted');
+                alert('Camera permission denied. Please allow camera access in your browser to use this application.');
+                document.getElementById('camera-modal').style.display = 'none';
+                grantBtn.style.display = 'block';
+                spinner.style.display = 'none';
             }
         }
+
+        function toggleCamera() {
+            var btn = document.getElementById('toggle-btn');
+
+            if (cameraStream) {
+                stopHandTracking();
+                cameraStream.getTracks().forEach(function(track) {
+                    track.stop();
+                });
+                cameraStream = null;
+                document.getElementById('browser-stage').style.display = 'none';
+                btn.innerText = 'Start Camera';
+                btn.classList.add('btn-off');
+                return;
+            }
+
+            requestCameraAccess();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('toggle-btn').removeAttribute('disabled');
+            probeAgent();
+
+            if (localStorage.getItem('cameraPermissionGranted') === 'true') {
+                requestCameraAccess();
+            }
+        });
     </script>
 </body>
 </html>
