@@ -49,6 +49,7 @@
         let trackingBusy = false;
         let lastGestureCenter = null;
         let stillFrames = 0;
+        let currentBrightness = 100;
 
         function getActiveCameraElement() {
             return document.getElementById('browser-preview') || document.getElementById('video-feed');
@@ -59,6 +60,13 @@
             var activeCamera = getActiveCameraElement();
             var brightnessValue = document.getElementById('brightness-value');
             var brightnessFill = document.getElementById('brightness-fill');
+            var brightnessRange = document.getElementById('brightness-range');
+
+            currentBrightness = brightness;
+
+            if (brightnessRange) {
+                brightnessRange.value = brightness;
+            }
 
             if (activeCamera) {
                 activeCamera.style.filter = 'brightness(' + (brightness / 100) + ')';
@@ -142,7 +150,6 @@
 
                 var pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
                 var targetBrightness = (pinchDistance - 0.03) / (0.30 - 0.03) * 100;
-                var currentBrightness = Number(document.getElementById('brightness-range').value);
                 var nextBrightness = currentBrightness + (targetBrightness - currentBrightness) * 0.35;
 
                 setGestureStatus('Status: Tracking');
