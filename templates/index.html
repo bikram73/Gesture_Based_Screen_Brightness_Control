@@ -22,6 +22,16 @@
         <h1>Gesture Brightness Control</h1>
         <p class="instructions">Pinch your index finger and thumb to adjust screen brightness.</p>
         <button id="toggle-btn" class="btn btn-off" onclick="toggleCamera()" disabled>Waiting for Camera...</button>
+        <div class="brightness-panel">
+            <div class="brightness-panel-header">
+                <span>Brightness Control</span>
+                <span id="brightness-value">100%</span>
+            </div>
+            <input id="brightness-range" type="range" min="0" max="100" value="100" step="1" aria-label="Brightness control">
+            <div class="brightness-track">
+                <div id="brightness-fill" class="brightness-fill"></div>
+            </div>
+        </div>
         <div class="video-container">
             <img id="video-feed" data-src="/video_feed" width="640" height="480" alt="Waiting for camera permission...">
         </div>
@@ -31,7 +41,36 @@
         let cameraStream = null;
         let backendMode = true;
 
+        function getActiveCameraElement() {
+            return document.getElementById('browser-preview') || document.getElementById('video-feed');
+        }
+
+        function applyBrightness(value) {
+            var brightness = Math.max(0, Math.min(100, Number(value)));
+            var activeCamera = getActiveCameraElement();
+            var brightnessValue = document.getElementById('brightness-value');
+            var brightnessFill = document.getElementById('brightness-fill');
+
+            if (activeCamera) {
+                activeCamera.style.filter = 'brightness(' + (brightness / 100) + ')';
+            }
+
+            if (brightnessValue) {
+                brightnessValue.innerText = brightness + '%';
+            }
+
+            if (brightnessFill) {
+                brightnessFill.style.width = brightness + '%';
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
+            var brightnessRange = document.getElementById('brightness-range');
+            brightnessRange.addEventListener('input', function() {
+                applyBrightness(this.value);
+            });
+            applyBrightness(brightnessRange.value);
+
             // Check if we already have permission from a previous visit
             if (localStorage.getItem('cameraPermissionGranted') === 'true') {
                 document.getElementById('camera-modal').style.display = 'none';
@@ -66,6 +105,7 @@
                         
                         img.onload = function() {
                             backendMode = true;
+                            applyBrightness(document.getElementById('brightness-range').value);
                             var btn = document.getElementById('toggle-btn');
                             btn.innerText = 'Stop Camera';
                             btn.classList.remove('btn-off');
@@ -119,6 +159,7 @@
 
                     preview.style.display = 'block';
                     preview.srcObject = stream;
+                    applyBrightness(document.getElementById('brightness-range').value);
                     btn.innerText = 'Stop Camera';
                     btn.classList.remove('btn-off');
                     btn.removeAttribute('disabled');
@@ -139,6 +180,7 @@
                 img.removeAttribute('src');
                 btn.innerText = 'Start Camera';
                 btn.classList.add('btn-off');
+                applyBrightness(document.getElementById('brightness-range').value);
             } else if (!backendMode && cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
@@ -155,6 +197,7 @@
                     startBrowserPreview();
                     return;
                 }
+                applyBrightness(document.getElementById('brightness-range').value);
                 btn.innerText = 'Stop Camera';
                 btn.classList.remove('btn-off');
             }
