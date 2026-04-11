@@ -6,3 +6,13 @@
   from = "/"
   to = "/templates/home.html"
   status = 200
+
+[[redirects]]
+  from = "/app"
+  to = "/templates/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/home"
+  to = "/templates/home.html"
+  status = 200
