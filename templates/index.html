@@ -60,6 +60,7 @@
         let lastSentBrightness = -1;
         let lastSentBrightnessTime = 0;
         let agentAvailable = false;
+        let mobileBrightnessNoticeShown = false;
 
         function isMobileDevice() {
             return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
@@ -179,6 +180,12 @@
                 preview.style.filter = 'brightness(' + (brightness / 100) + ')';
             }
 
+            if (isMobileDevice()) {
+                // Mobile browsers cannot set system brightness, so we apply visual page brightness.
+                var pageBrightness = 0.65 + (brightness / 100) * 0.7;
+                document.body.style.filter = 'brightness(' + pageBrightness + ')';
+            }
+
             return brightness;
         }
 
@@ -240,6 +247,14 @@
             var value = clampBrightness(brightness);
             var now = Date.now();
 
+            if (isMobileDevice()) {
+                if (!mobileBrightnessNoticeShown) {
+                    setAgentStatus('Mobile browsers cannot change system brightness. Gesture control is applied to page brightness only.');
+                    mobileBrightnessNoticeShown = true;
+                }
+                return;
+            }
+
             if (value === lastSentBrightness && agentAvailable) {
                 return;
             }
@@ -274,6 +289,12 @@
         }
 
         async function probeAgent() {
+            if (isMobileDevice()) {
+                setAgentStatus('Mobile browsers cannot change system brightness. Gesture control is applied to page brightness only.');
+                mobileBrightnessNoticeShown = true;
+                return;
+            }
+
             try {
                 var response = await fetch(BRIGHTNESS_AGENT_URL + '/health', {
                     method: 'GET',
