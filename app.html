@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gesture Brightness App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="camera-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>Camera Permission</h2>
+      <p>
+        Click below, then allow camera access in your browser prompt.
+      </p>
+      <button id="grant-btn" class="btn btn-off">Grant Camera Access</button>
+    </div>
+  </div>
+
+  <main class="container">
+    <a href="index.html" class="back-link">&larr; Back to Home</a>
+    <h1>Gesture Brightness Control</h1>
+    <p class="instructions">
+      Pinch thumb + index to adjust brightness. Open palm to pause.
+    </p>
+
+    <div class="toolbar">
+      <button id="toggle-btn" class="btn btn-off" disabled>Waiting for Camera...</button>
+      <span id="status" class="status">Status: IDLE</span>
+    </div>
+
+    <div class="video-container" id="video-shell">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="meter-wrap">
+        <div id="meter" class="meter"></div>
+      </div>
+      <div id="value" class="value">Brightness: 50%</div>
+    </div>
+
+    <p class="hint">Shortcut: press Q to close camera.</p>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
