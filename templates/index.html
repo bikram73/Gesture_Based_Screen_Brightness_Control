@@ -50,6 +50,19 @@
         let lastSentBrightnessTime = 0;
         let agentAvailable = false;
 
+        function isMobileDevice() {
+            return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        }
+
+        function isCameraSecureContext() {
+            if (window.isSecureContext) {
+                return true;
+            }
+
+            var host = window.location.hostname;
+            return host === 'localhost' || host === '127.0.0.1';
+        }
+
         function clampBrightness(value) {
             return Math.max(0, Math.min(100, Number(value)));
         }
@@ -370,18 +383,37 @@
                 return;
             }
 
+            if (!isCameraSecureContext()) {
+                alert('Camera access on mobile requires HTTPS. Open this site using https:// and then allow camera permission.');
+                return;
+            }
+
             grantBtn.style.display = 'none';
             spinner.style.display = 'block';
 
             try {
-                var stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                var stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'user' } },
+                        audio: false
+                    });
+                } catch (innerError) {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                }
+
                 localStorage.setItem('cameraPermissionGranted', 'true');
                 document.getElementById('camera-modal').style.display = 'none';
                 startBrowserPreview(stream);
             } catch (error) {
                 localStorage.removeItem('cameraPermissionGranted');
-                alert('Camera permission denied. Please allow camera access in your browser to use this application.');
-                document.getElementById('camera-modal').style.display = 'none';
+
+                if (error && error.name === 'NotAllowedError') {
+                    alert('Camera permission denied. Please enable camera access for this site in your browser settings and try again.');
+                } else {
+                    alert('Unable to access camera. Please verify camera permission and browser support, then try again.');
+                }
+
                 grantBtn.style.display = 'block';
                 spinner.style.display = 'none';
             }
@@ -420,7 +452,8 @@
             document.getElementById('toggle-btn').removeAttribute('disabled');
             probeAgent();
 
-            if (localStorage.getItem('cameraPermissionGranted') === 'true') {
+            // Mobile browsers often block permission prompts without explicit user interaction.
+            if (!isMobileDevice() && localStorage.getItem('cameraPermissionGranted') === 'true') {
                 requestCameraAccess();
             }
         });
