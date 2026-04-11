@@ -22,7 +22,6 @@
         <h1>Gesture Brightness Control</h1>
         <p class="instructions">Pinch your index finger and thumb to adjust screen brightness.</p>
         <button id="toggle-btn" class="btn btn-off" onclick="toggleCamera()" disabled>Waiting for Camera...</button>
-        <p id="mode-message" class="instructions" style="margin-top:-10px; display:none;"></p>
         <div class="video-container">
             <img id="video-feed" data-src="/video_feed" width="640" height="480" alt="Waiting for camera permission...">
         </div>
@@ -43,7 +42,6 @@
         function requestCameraAccess() {
             var grantBtn = document.getElementById('grant-btn');
             var spinner = document.getElementById('loading-spinner');
-            var modeMessage = document.getElementById('mode-message');
 
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 // Hide button and show spinner
@@ -68,7 +66,6 @@
                         
                         img.onload = function() {
                             backendMode = true;
-                            modeMessage.style.display = 'none';
                             var btn = document.getElementById('toggle-btn');
                             btn.innerText = 'Stop Camera';
                             btn.classList.remove('btn-off');
@@ -77,8 +74,6 @@
 
                         img.onerror = function() {
                             backendMode = false;
-                            modeMessage.style.display = 'block';
-                            modeMessage.innerText = 'Netlify fallback mode: backend video feed is unavailable, so the browser camera preview is shown instead.';
                             startBrowserPreview();
                         };
                     })
