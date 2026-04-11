@@ -259,12 +259,6 @@
                 applyBrightness(this.value);
             });
             applyBrightness(brightnessRange.value);
-
-            // Check if we already have permission from a previous visit
-            if (localStorage.getItem('cameraPermissionGranted') === 'true') {
-                document.getElementById('camera-modal').style.display = 'none';
-                requestCameraAccess(); // Automatically start the feed
-            }
         });
 
         function requestCameraAccess() {
@@ -278,39 +272,13 @@
 
                 navigator.mediaDevices.getUserMedia({ video: true })
                     .then(function(stream) {
-                        // Stop browser stream so OpenCV backend can use the webcam
-                        stream.getTracks().forEach(track => track.stop());
-                        
                         // Remember the permission for next time
                         localStorage.setItem('cameraPermissionGranted', 'true');
                         
                         // Hide the custom modal
                         document.getElementById('camera-modal').style.display = 'none';
-                        
-                        // Try backend MJPEG feed first. If it is unavailable on Netlify,
-                        // fall back to a local browser camera preview so the page still works.
-                        var img = document.getElementById('video-feed');
-                        img.src = img.getAttribute('data-src');
-                        
-                        img.onload = function() {
-                            backendMode = true;
-                            stopHandTracking();
-                            img.style.display = 'block';
-                            var existingPreview = document.getElementById('browser-preview');
-                            if (existingPreview) {
-                                existingPreview.remove();
-                            }
-                            applyBrightness(document.getElementById('brightness-range').value);
-                            var btn = document.getElementById('toggle-btn');
-                            btn.innerText = 'Stop Camera';
-                            btn.classList.remove('btn-off');
-                            btn.removeAttribute('disabled');
-                        };
 
-                        img.onerror = function() {
-                            backendMode = false;
-                            startBrowserPreview();
-                        };
+                        startCameraMode(stream);
                     })
                     .catch(function(err) {
                         // Clear the saved permission if it gets denied or revoked
@@ -329,35 +297,73 @@
             }
         }
 
-        function startBrowserPreview() {
+        function startCameraMode(stream) {
+            var img = document.getElementById('video-feed');
+            var handled = false;
+
+            function finishWithBackend() {
+                if (handled) {
+                    return;
+                }
+                handled = true;
+                backendMode = true;
+                stopHandTracking();
+                if (stream) {
+                    stream.getTracks().forEach(function(track) {
+                        track.stop();
+                    });
+                }
+                var stage = document.getElementById('browser-stage');
+                if (stage) {
+                    stage.style.display = 'none';
+                }
+                img.style.display = 'block';
+                img.src = img.getAttribute('data-src') + '?t=' + Date.now();
+                applyBrightness(document.getElementById('brightness-range').value);
+                var btn = document.getElementById('toggle-btn');
+                btn.innerText = 'Stop Camera';
+                btn.classList.remove('btn-off');
+                btn.removeAttribute('disabled');
+            }
+
+            function finishWithBrowserPreview() {
+                if (handled) {
+                    return;
+                }
+                handled = true;
+                backendMode = false;
+                startBrowserPreview(stream);
+            }
+
+            // Try backend stream directly first. If image stream fails, use browser preview.
+            img.onload = finishWithBackend;
+            img.onerror = finishWithBrowserPreview;
+            img.src = img.getAttribute('data-src') + '?t=' + Date.now();
+        }
+
+        function startBrowserPreview(stream) {
             var btn = document.getElementById('toggle-btn');
             var video = document.getElementById('video-feed');
             var stage = document.getElementById('browser-stage');
             var overlay = document.getElementById('overlay-canvas');
 
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function(stream) {
-                    cameraStream = stream;
-                    video.style.display = 'none';
-                    stage.style.display = 'block';
+            cameraStream = stream;
+            video.style.display = 'none';
+            stage.style.display = 'block';
 
-                    var preview = document.getElementById('browser-preview');
-                    preview.srcObject = stream;
-                    preview.onloadedmetadata = function() {
-                        overlay.width = preview.videoWidth || 640;
-                        overlay.height = preview.videoHeight || 480;
-                    };
+            var preview = document.getElementById('browser-preview');
+            preview.srcObject = stream;
+            preview.onloadedmetadata = function() {
+                overlay.width = preview.videoWidth || 640;
+                overlay.height = preview.videoHeight || 480;
+                preview.play();
+            };
 
-                    applyBrightness(document.getElementById('brightness-range').value);
-                    startHandTracking(preview);
-                    btn.innerText = 'Stop Camera';
-                    btn.classList.remove('btn-off');
-                    btn.removeAttribute('disabled');
-                })
-                .catch(function() {
-                    alert('Camera permission denied. Please allow camera access in your browser to use this application.');
-                    document.getElementById('camera-modal').style.display = 'none';
-                });
+            applyBrightness(document.getElementById('brightness-range').value);
+            startHandTracking(preview);
+            btn.innerText = 'Stop Camera';
+            btn.classList.remove('btn-off');
+            btn.removeAttribute('disabled');
         }
 
         function toggleCamera() {
@@ -387,9 +393,19 @@
                 btn.classList.add('btn-off');
             } else {
                 if (backendMode) {
-                    img.src = img.getAttribute('data-src');
+                    img.src = img.getAttribute('data-src') + '?t=' + Date.now();
                 } else {
-                    startBrowserPreview();
+                    if (cameraStream) {
+                        startBrowserPreview(cameraStream);
+                    } else {
+                        navigator.mediaDevices.getUserMedia({ video: true })
+                            .then(function(stream) {
+                                startBrowserPreview(stream);
+                            })
+                            .catch(function() {
+                                alert('Camera permission denied. Please allow camera access in your browser to use this application.');
+                            });
+                    }
                     return;
                 }
                 applyBrightness(document.getElementById('brightness-range').value);
