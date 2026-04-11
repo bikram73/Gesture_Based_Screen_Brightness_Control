@@ -15,6 +15,17 @@
         <div class="modal">
             <h2>Camera Permission</h2>
             <p>We need access to your camera to detect hand gestures. Please click the button below and then choose <strong>"Allow"</strong> when your browser prompts you.</p>
+            <div id="mobile-camera-help" class="mobile-camera-help" style="display:none;">
+                <p><strong>Allow camera on mobile browser:</strong></p>
+                <ol>
+                    <li>Go to browser settings.</li>
+                    <li>Open Site settings.</li>
+                    <li>Tap Camera.</li>
+                    <li>Set it to <strong>Sites can ask</strong>.</li>
+                    <li>Find this site and set camera to <strong>Allow</strong>.</li>
+                    <li>Return here and tap Grant Camera Access again.</li>
+                </ol>
+            </div>
             <button id="grant-btn" class="btn btn-off" onclick="requestCameraAccess()">Grant Camera Access</button>
             <div id="loading-spinner" class="spinner" style="display: none;"></div>
         </div>
@@ -136,6 +147,26 @@
             } else {
                 status.classList.remove('camera-screen-message-hint');
             }
+        }
+
+        function showMobilePermissionHelp() {
+            var help = document.getElementById('mobile-camera-help');
+            if (!help) {
+                return;
+            }
+
+            if (isMobileDevice()) {
+                help.style.display = 'block';
+            }
+        }
+
+        function hideMobilePermissionHelp() {
+            var help = document.getElementById('mobile-camera-help');
+            if (!help) {
+                return;
+            }
+
+            help.style.display = 'none';
         }
 
         function applyBrightness(value) {
@@ -388,6 +419,7 @@
                 return;
             }
 
+            hideMobilePermissionHelp();
             grantBtn.style.display = 'none';
             spinner.style.display = 'block';
 
@@ -409,7 +441,12 @@
                 localStorage.removeItem('cameraPermissionGranted');
 
                 if (error && error.name === 'NotAllowedError') {
-                    alert('Camera permission denied. Please enable camera access for this site in your browser settings and try again.');
+                    if (isMobileDevice()) {
+                        showMobilePermissionHelp();
+                        setCameraStatus('Camera permission denied. Follow the steps above and try again.');
+                    } else {
+                        alert('Camera permission denied. Please enable camera access for this site in your browser settings and try again.');
+                    }
                 } else {
                     alert('Unable to access camera. Please verify camera permission and browser support, then try again.');
                 }
@@ -451,6 +488,10 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('toggle-btn').removeAttribute('disabled');
             probeAgent();
+
+             if (!isMobileDevice()) {
+                hideMobilePermissionHelp();
+            }
 
             // Mobile browsers often block permission prompts without explicit user interaction.
             if (!isMobileDevice() && localStorage.getItem('cameraPermissionGranted') === 'true') {
