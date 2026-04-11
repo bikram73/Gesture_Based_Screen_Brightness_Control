@@ -300,12 +300,16 @@
         function startCameraMode(stream) {
             var img = document.getElementById('video-feed');
             var handled = false;
+            var fallbackTimer = null;
 
             function finishWithBackend() {
                 if (handled) {
                     return;
                 }
                 handled = true;
+                if (fallbackTimer) {
+                    clearTimeout(fallbackTimer);
+                }
                 backendMode = true;
                 stopHandTracking();
                 if (stream) {
@@ -331,6 +335,9 @@
                     return;
                 }
                 handled = true;
+                if (fallbackTimer) {
+                    clearTimeout(fallbackTimer);
+                }
                 backendMode = false;
                 startBrowserPreview(stream);
             }
@@ -339,6 +346,11 @@
             img.onload = finishWithBackend;
             img.onerror = finishWithBrowserPreview;
             img.src = img.getAttribute('data-src') + '?t=' + Date.now();
+
+            // If backend stream never resolves (neither load nor error), fallback automatically.
+            fallbackTimer = setTimeout(function() {
+                finishWithBrowserPreview();
+            }, 2200);
         }
 
         function startBrowserPreview(stream) {
