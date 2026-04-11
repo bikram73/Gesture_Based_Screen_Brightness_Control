@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Brightness Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Custom Camera Access Modal -->
+    <div id="camera-modal" class="modal-overlay">
+        <div class="modal">
+            <h2>Camera Permission</h2>
+            <p>We need access to your camera to detect hand gestures. Please click the button below and then choose <strong>"Allow"</strong> when your browser prompts you.</p>
+            <button id="grant-btn" class="btn btn-off" onclick="requestCameraAccess()">Grant Camera Access</button>
+            <div id="loading-spinner" class="spinner" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-link">&larr; Back to Home</a>
+        <h1>Gesture Brightness Control</h1>
+        <p class="instructions">Pinch your index finger and thumb to adjust screen brightness.</p>
+        <button id="toggle-btn" class="btn btn-off" onclick="toggleCamera()" disabled>Waiting for Camera...</button>
+        <div class="video-container">
+            <!-- The 'src' attribute is removed initially so it waits for permission -->
+            <img id="video-feed" data-src="{{ url_for('video_feed') }}" width="640" height="480" alt="Waiting for camera permission...">
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check if we already have permission from a previous visit
+            if (localStorage.getItem('cameraPermissionGranted') === 'true') {
+                document.getElementById('camera-modal').style.display = 'none';
+                requestCameraAccess(); // Automatically start the feed
+            }
+        });
+
+        function requestCameraAccess() {
+            var grantBtn = document.getElementById('grant-btn');
+            var spinner = document.getElementById('loading-spinner');
+
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                // Hide button and show spinner
+                grantBtn.style.display = 'none';
+                spinner.style.display = 'block';
+
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(stream) {
+                        // Stop the browser stream immediately so it doesn't block OpenCV from accessing the hardware camera
+                        stream.getTracks().forEach(track => track.stop());
+                        
+                        // Remember the permission for next time
+                        localStorage.setItem('cameraPermissionGranted', 'true');
+                        
+                        // Hide the custom modal
+                        document.getElementById('camera-modal').style.display = 'none';
+                        
+                        // Start the backend video feed now that permission is verified
+                        var img = document.getElementById('video-feed');
+                        img.src = img.getAttribute('data-src');
+                        
+                        // Enable the toggle button
+                        var btn = document.getElementById('toggle-btn');
+                        btn.innerText = 'Stop Camera';
+                        btn.classList.remove('btn-off');
+                        btn.removeAttribute('disabled');
+                    })
+                    .catch(function(err) {
+                        // Clear the saved permission if it gets denied or revoked
+                        localStorage.removeItem('cameraPermissionGranted');
+                        
+                        alert("Camera permission denied. Please allow camera access in your browser to use this application.");
+                        document.getElementById('toggle-btn').innerText = 'Camera Blocked';
+                        document.getElementById('camera-modal').style.display = 'none';
+                        
+                        // Reset modal state in case they refresh or try again
+                        grantBtn.style.display = 'block';
+                        spinner.style.display = 'none';
+                    });
+            } else {
+                alert("Camera access is not supported by your browser.");
+            }
+        }
+
+        function toggleCamera() {
+            var img = document.getElementById('video-feed');
+            var btn = document.getElementById('toggle-btn');
+            
+            if (img.hasAttribute('src')) {
+                img.setAttribute('data-src', img.src); // Store the URL for later
+                img.removeAttribute('src'); // Removing the source closes the stream
+                btn.innerText = 'Start Camera';
+                btn.classList.add('btn-off');
+            } else {
+                img.src = img.getAttribute('data-src'); // Restore the URL to start a new stream
+                btn.innerText = 'Stop Camera';
+                btn.classList.remove('btn-off');
+            }
+        }
+    </script>
+</body>
+</html>
