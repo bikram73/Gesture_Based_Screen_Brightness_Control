@@ -38,6 +38,10 @@
         </div>
         <div class="video-container">
             <img id="video-feed" data-src="/video_feed" width="640" height="480" alt="Waiting for camera permission...">
+            <div id="browser-stage" class="camera-stage" style="display:none;">
+                <video id="browser-preview" class="camera-layer" width="640" height="480" autoplay playsinline muted></video>
+                <canvas id="overlay-canvas" class="camera-layer" width="640" height="480"></canvas>
+            </div>
         </div>
     </div>
 
@@ -53,6 +57,20 @@
 
         function getActiveCameraElement() {
             return document.getElementById('browser-preview') || document.getElementById('video-feed');
+        }
+
+        function getOverlayCanvas() {
+            return document.getElementById('overlay-canvas');
+        }
+
+        function clearOverlay() {
+            var canvas = getOverlayCanvas();
+            if (!canvas) {
+                return;
+            }
+
+            var context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
         }
 
         function applyBrightness(value) {
@@ -88,12 +106,63 @@
             }
         }
 
+        function drawOverlay(results, brightness) {
+            var canvas = getOverlayCanvas();
+            if (!canvas) {
+                return;
+            }
+
+            var context = canvas.getContext('2d');
+            context.save();
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                var landmarks = results.multiHandLandmarks[0];
+                if (window.drawConnectors && window.drawLandmarks && window.HAND_CONNECTIONS) {
+                    drawConnectors(context, landmarks, HAND_CONNECTIONS, { color: '#ffffff', lineWidth: 3 });
+                    drawLandmarks(context, landmarks, { color: '#ff3b30', lineWidth: 1, radius: 4 });
+                }
+
+                var thumbTip = landmarks[4];
+                var indexTip = landmarks[8];
+                context.beginPath();
+                context.moveTo((1 - thumbTip.x) * canvas.width, thumbTip.y * canvas.height);
+                context.lineTo((1 - indexTip.x) * canvas.width, indexTip.y * canvas.height);
+                context.strokeStyle = '#1e90ff';
+                context.lineWidth = 5;
+                context.stroke();
+
+                context.fillStyle = '#39ff14';
+                context.font = 'bold 34px Segoe UI, sans-serif';
+                context.fillText('Brightness: ' + Math.round(brightness) + '%', 20, 40);
+
+                var barX = 30;
+                var barY = 90;
+                var barHeight = 220;
+                var fillHeight = (brightness / 100) * barHeight;
+                var color = 'rgb(' + Math.round(255 - (brightness * 2.55)) + ',' + Math.round(brightness * 2.55) + ',0)';
+
+                context.fillStyle = 'rgba(0, 0, 0, 0.35)';
+                context.fillRect(barX - 10, barY - 10, 40, barHeight + 20);
+                context.strokeStyle = '#39ff14';
+                context.lineWidth = 3;
+                context.strokeRect(barX - 5, barY - 5, 30, barHeight + 10);
+                context.fillStyle = color;
+                context.fillRect(barX, barY + (barHeight - fillHeight), 20, fillHeight);
+            }
+
+            context.restore();
+        }
+
         function stopHandTracking() {
             trackingActive = false;
             trackingBusy = false;
             lastGestureCenter = null;
             stillFrames = 0;
             handTracker = null;
+            clearOverlay();
         }
 
         async function startHandTracking(videoElement) {
@@ -154,6 +223,7 @@
 
                 setGestureStatus('Status: Tracking');
                 applyBrightness(nextBrightness);
+                drawOverlay(results, nextBrightness);
             });
 
             trackingActive = true;
@@ -262,28 +332,22 @@
         function startBrowserPreview() {
             var btn = document.getElementById('toggle-btn');
             var video = document.getElementById('video-feed');
+            var stage = document.getElementById('browser-stage');
+            var overlay = document.getElementById('overlay-canvas');
 
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(function(stream) {
                     cameraStream = stream;
                     video.style.display = 'none';
+                    stage.style.display = 'block';
 
                     var preview = document.getElementById('browser-preview');
-                    if (!preview) {
-                        preview = document.createElement('video');
-                        preview.id = 'browser-preview';
-                        preview.width = 640;
-                        preview.height = 480;
-                        preview.autoplay = true;
-                        preview.playsInline = true;
-                        preview.muted = true;
-                        preview.style.maxWidth = '100%';
-                        preview.style.height = 'auto';
-                        video.parentNode.appendChild(preview);
-                    }
-
-                    preview.style.display = 'block';
                     preview.srcObject = stream;
+                    preview.onloadedmetadata = function() {
+                        overlay.width = preview.videoWidth || 640;
+                        overlay.height = preview.videoHeight || 480;
+                    };
+
                     applyBrightness(document.getElementById('brightness-range').value);
                     startHandTracking(preview);
                     btn.innerText = 'Stop Camera';
@@ -313,9 +377,12 @@
                 cameraStream = null;
                 if (preview) {
                     preview.srcObject = null;
-                    preview.style.display = 'none';
-                    preview.remove();
                 }
+                var stage = document.getElementById('browser-stage');
+                if (stage) {
+                    stage.style.display = 'none';
+                }
+                img.style.display = 'block';
                 btn.innerText = 'Start Camera';
                 btn.classList.add('btn-off');
             } else {
