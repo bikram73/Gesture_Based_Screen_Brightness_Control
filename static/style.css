@@ -55,6 +55,27 @@ video {
     height: 100%;
     object-fit: cover;
 }
+
+.camera-screen-message {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 2px solid #ff8a80;
+    background: rgba(183, 28, 28, 0.75);
+    color: #ffffff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: capitalize;
+}
+
+.camera-screen-message-stop {
+    box-shadow: 0 0 18px rgba(255, 82, 82, 0.5);
+}
 .brightness-panel {
     max-width: 640px;
     margin: 10px auto 0;

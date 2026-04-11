@@ -31,6 +31,7 @@
             <div id="browser-stage" class="camera-stage" style="display:none;">
                 <video id="browser-preview" class="camera-layer" width="640" height="480" autoplay playsinline muted></video>
                 <canvas id="overlay-canvas" class="camera-layer" width="640" height="480"></canvas>
+                <div id="camera-screen-message" class="camera-screen-message" style="display:none;"></div>
             </div>
         </div>
     </div>
@@ -92,6 +93,28 @@
             } else {
                 status.style.display = 'none';
                 status.innerText = '';
+            }
+        }
+
+        function setCameraScreenMessage(message, isStopped) {
+            var status = document.getElementById('camera-screen-message');
+            if (!status) {
+                return;
+            }
+
+            if (!message) {
+                status.style.display = 'none';
+                status.innerText = '';
+                status.classList.remove('camera-screen-message-stop');
+                return;
+            }
+
+            status.style.display = 'block';
+            status.innerText = message;
+            if (isStopped) {
+                status.classList.add('camera-screen-message-stop');
+            } else {
+                status.classList.remove('camera-screen-message-stop');
             }
         }
 
@@ -325,6 +348,7 @@
             btn.classList.remove('btn-off');
             btn.removeAttribute('disabled');
             setCameraStatus('Camera started.');
+            setCameraScreenMessage('', false);
         }
 
         async function requestCameraAccess() {
@@ -355,6 +379,8 @@
 
         function toggleCamera() {
             var btn = document.getElementById('toggle-btn');
+            var stage = document.getElementById('browser-stage');
+            var preview = getPreviewElement();
 
             if (cameraStream) {
                 stopHandTracking();
@@ -362,14 +388,21 @@
                     track.stop();
                 });
                 cameraStream = null;
-                document.getElementById('browser-stage').style.display = 'none';
+                if (preview) {
+                    preview.srcObject = null;
+                }
+                if (stage) {
+                    stage.style.display = 'block';
+                }
                 btn.innerText = 'Start Camera';
                 btn.classList.add('btn-off');
                 setCameraStatus('Camera stopped.');
+                setCameraScreenMessage('Camera stopped', true);
                 return;
             }
 
             setCameraStatus('');
+            setCameraScreenMessage('', false);
             requestCameraAccess();
         }
 
