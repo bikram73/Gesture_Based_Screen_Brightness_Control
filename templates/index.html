@@ -22,12 +22,16 @@
         <h1>Gesture Brightness Control</h1>
         <p class="instructions">Pinch your index finger and thumb to adjust screen brightness.</p>
         <button id="toggle-btn" class="btn btn-off" onclick="toggleCamera()" disabled>Waiting for Camera...</button>
+        <p id="mode-message" class="instructions" style="margin-top:-10px; display:none;"></p>
         <div class="video-container">
             <img id="video-feed" data-src="/video_feed" width="640" height="480" alt="Waiting for camera permission...">
         </div>
     </div>
 
     <script>
+        let cameraStream = null;
+        let backendMode = true;
+
         document.addEventListener("DOMContentLoaded", function() {
             // Check if we already have permission from a previous visit
             if (localStorage.getItem('cameraPermissionGranted') === 'true') {
@@ -39,6 +43,7 @@
         function requestCameraAccess() {
             var grantBtn = document.getElementById('grant-btn');
             var spinner = document.getElementById('loading-spinner');
+            var modeMessage = document.getElementById('mode-message');
 
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 // Hide button and show spinner
@@ -56,15 +61,26 @@
                         // Hide the custom modal
                         document.getElementById('camera-modal').style.display = 'none';
                         
-                        // Start backend MJPEG feed with brightness overlay
+                        // Try backend MJPEG feed first. If it is unavailable on Netlify,
+                        // fall back to a local browser camera preview so the page still works.
                         var img = document.getElementById('video-feed');
                         img.src = img.getAttribute('data-src');
                         
-                        // Enable the toggle button
-                        var btn = document.getElementById('toggle-btn');
-                        btn.innerText = 'Stop Camera';
-                        btn.classList.remove('btn-off');
-                        btn.removeAttribute('disabled');
+                        img.onload = function() {
+                            backendMode = true;
+                            modeMessage.style.display = 'none';
+                            var btn = document.getElementById('toggle-btn');
+                            btn.innerText = 'Stop Camera';
+                            btn.classList.remove('btn-off');
+                            btn.removeAttribute('disabled');
+                        };
+
+                        img.onerror = function() {
+                            backendMode = false;
+                            modeMessage.style.display = 'block';
+                            modeMessage.innerText = 'Netlify fallback mode: backend video feed is unavailable, so the browser camera preview is shown instead.';
+                            startBrowserPreview();
+                        };
                     })
                     .catch(function(err) {
                         // Clear the saved permission if it gets denied or revoked
@@ -83,17 +99,67 @@
             }
         }
 
+        function startBrowserPreview() {
+            var btn = document.getElementById('toggle-btn');
+            var video = document.getElementById('video-feed');
+
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    cameraStream = stream;
+                    video.style.display = 'none';
+
+                    var preview = document.getElementById('browser-preview');
+                    if (!preview) {
+                        preview = document.createElement('video');
+                        preview.id = 'browser-preview';
+                        preview.width = 640;
+                        preview.height = 480;
+                        preview.autoplay = true;
+                        preview.playsInline = true;
+                        preview.muted = true;
+                        preview.style.maxWidth = '100%';
+                        preview.style.height = 'auto';
+                        video.parentNode.appendChild(preview);
+                    }
+
+                    preview.style.display = 'block';
+                    preview.srcObject = stream;
+                    btn.innerText = 'Stop Camera';
+                    btn.classList.remove('btn-off');
+                    btn.removeAttribute('disabled');
+                })
+                .catch(function() {
+                    alert('Camera permission denied. Please allow camera access in your browser to use this application.');
+                    document.getElementById('camera-modal').style.display = 'none';
+                });
+        }
+
         function toggleCamera() {
             var img = document.getElementById('video-feed');
             var btn = document.getElementById('toggle-btn');
+            var preview = document.getElementById('browser-preview');
             
-            if (img.hasAttribute('src')) {
+            if (backendMode && img.hasAttribute('src')) {
                 img.setAttribute('data-src', img.src);
                 img.removeAttribute('src');
                 btn.innerText = 'Start Camera';
                 btn.classList.add('btn-off');
+            } else if (!backendMode && cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+                if (preview) {
+                    preview.srcObject = null;
+                    preview.style.display = 'none';
+                }
+                btn.innerText = 'Start Camera';
+                btn.classList.add('btn-off');
             } else {
-                img.src = img.getAttribute('data-src');
+                if (backendMode) {
+                    img.src = img.getAttribute('data-src');
+                } else {
+                    startBrowserPreview();
+                    return;
+                }
                 btn.innerText = 'Stop Camera';
                 btn.classList.remove('btn-off');
             }
