@@ -76,6 +76,12 @@ video {
 .camera-screen-message-stop {
     box-shadow: 0 0 18px rgba(255, 82, 82, 0.5);
 }
+
+.camera-screen-message-hint {
+    border-color: #80deea;
+    background: rgba(0, 105, 120, 0.78);
+    box-shadow: 0 0 18px rgba(0, 188, 212, 0.45);
+}
 .brightness-panel {
     max-width: 640px;
     margin: 10px auto 0;

@@ -96,7 +96,7 @@
             }
         }
 
-        function setCameraScreenMessage(message, isStopped) {
+        function setCameraScreenMessage(message, isStopped, isHint) {
             var status = document.getElementById('camera-screen-message');
             if (!status) {
                 return;
@@ -106,6 +106,7 @@
                 status.style.display = 'none';
                 status.innerText = '';
                 status.classList.remove('camera-screen-message-stop');
+                status.classList.remove('camera-screen-message-hint');
                 return;
             }
 
@@ -115,6 +116,12 @@
                 status.classList.add('camera-screen-message-stop');
             } else {
                 status.classList.remove('camera-screen-message-stop');
+            }
+
+            if (isHint) {
+                status.classList.add('camera-screen-message-hint');
+            } else {
+                status.classList.remove('camera-screen-message-hint');
             }
         }
 
@@ -267,8 +274,11 @@
                     lastGestureCenter = null;
                     stillFrames = 0;
                     clearOverlay();
+                    setCameraScreenMessage('Show your hand to control brightness', false, true);
                     return;
                 }
+
+                setCameraScreenMessage('', false, false);
 
                 var thumbTip = landmarks[4];
                 var indexTip = landmarks[8];
@@ -348,7 +358,7 @@
             btn.classList.remove('btn-off');
             btn.removeAttribute('disabled');
             setCameraStatus('Camera started.');
-            setCameraScreenMessage('', false);
+            setCameraScreenMessage('Show your hand to control brightness', false, true);
         }
 
         async function requestCameraAccess() {
@@ -397,12 +407,12 @@
                 btn.innerText = 'Start Camera';
                 btn.classList.add('btn-off');
                 setCameraStatus('Camera stopped.');
-                setCameraScreenMessage('Camera stopped', true);
+                setCameraScreenMessage('Camera stopped', true, false);
                 return;
             }
 
             setCameraStatus('');
-            setCameraScreenMessage('', false);
+            setCameraScreenMessage('', false, false);
             requestCameraAccess();
         }
 
