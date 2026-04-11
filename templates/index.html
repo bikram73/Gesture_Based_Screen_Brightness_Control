@@ -133,27 +133,27 @@
                 context.strokeStyle = '#1e90ff';
                 context.lineWidth = 5;
                 context.stroke();
-
-                context.fillStyle = '#39ff14';
-                context.font = 'bold 34px Segoe UI, sans-serif';
-                context.fillText('Brightness: ' + Math.round(brightness) + '%', 20, 40);
-
-                var barX = 30;
-                var barY = 90;
-                var barHeight = 220;
-                var fillHeight = (brightness / 100) * barHeight;
-                var color = 'rgb(' + Math.round(255 - (brightness * 2.55)) + ',' + Math.round(brightness * 2.55) + ',0)';
-
-                context.fillStyle = 'rgba(0, 0, 0, 0.35)';
-                context.fillRect(barX - 10, barY - 10, 40, barHeight + 20);
-                context.strokeStyle = '#39ff14';
-                context.lineWidth = 3;
-                context.strokeRect(barX - 5, barY - 5, 30, barHeight + 10);
-                context.fillStyle = color;
-                context.fillRect(barX, barY + (barHeight - fillHeight), 20, fillHeight);
             }
 
             context.restore();
+
+            context.fillStyle = '#39ff14';
+            context.font = 'bold 34px Segoe UI, sans-serif';
+            context.fillText('Brightness: ' + Math.round(brightness) + '%', 20, 40);
+
+            var barX = 30;
+            var barY = 90;
+            var barHeight = 220;
+            var fillHeight = (brightness / 100) * barHeight;
+            var color = 'rgb(' + Math.round(255 - (brightness * 2.55)) + ',' + Math.round(brightness * 2.55) + ',0)';
+
+            context.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            context.fillRect(barX - 10, barY - 10, 40, barHeight + 20);
+            context.strokeStyle = '#39ff14';
+            context.lineWidth = 3;
+            context.strokeRect(barX - 5, barY - 5, 30, barHeight + 10);
+            context.fillStyle = color;
+            context.fillRect(barX, barY + (barHeight - fillHeight), 20, fillHeight);
         }
 
         function stopHandTracking() {
