@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home - Gesture Brightness Control</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
         <h1>Gesture Brightness Control</h1>
         <div class="project-details">
             <p>Welcome to the <strong>Gesture Brightness Control</strong> web application!</p>
-            <p>This project uses <strong>OpenCV</strong> and <strong>MediaPipe</strong> machine learning models to track your hand gestures in real-time through your webcam.</p>
+            <p>This project uses <strong>MediaPipe</strong> in the browser to track your hand gestures in real-time through your webcam.</p>
             
             <h3>✨ Key Features</h3>
             <ul>
@@ -22,14 +22,14 @@
             </ul>
 
             <h3>🛠️ How it works</h3>
-            <p>By pinching your index finger and thumb, the application calculates the distance between them. This distance is smoothly mapped to your computer's screen brightness percentage using the <code>screen_brightness_control</code> Python library.</p>
+            <p>By pinching your index finger and thumb, the application calculates the distance between them. This distance is smoothly mapped to a visual brightness percentage in the live preview.</p>
             
             <h3>⚠️ Important Note</h3>
             <p>Please ensure you grant your browser permission to access your webcam. The application requires an active camera feed to detect your hand gestures.</p>
 
             <p>Click the button below to launch the camera interface and start controlling your brightness hands-free!</p>
         </div>
-        <a href="{{ url_for('app_page') }}" class="btn btn-start">Launch Application</a>
+        <a href="./index.html" class="btn btn-start">Launch Application</a>
     </div>
 </body>
 </html>

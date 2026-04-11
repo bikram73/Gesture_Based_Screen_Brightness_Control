@@ -7,7 +7,7 @@ import os
 from math import hypot
 import screen_brightness_control as sbc
 import numpy as np 
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, send_from_directory
 
 # Download hand landmarker model if not exists
 MODEL_PATH = 'hand_landmarker.task'
@@ -121,9 +121,21 @@ def generate_frames():
 def home():
     return render_template('home.html')
 
+@app.route('/home.html')
+def home_alias():
+    return render_template('home.html')
+
 @app.route('/app')
 def app_page():
     return render_template('index.html')
+
+@app.route('/index.html')
+def app_page_alias():
+    return render_template('index.html')
+
+@app.route('/app.js')
+def app_js():
+    return send_from_directory('templates', 'app.js')
 
 @app.route('/video_feed')
 def video_feed():
