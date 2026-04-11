@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gesture Brightness Control</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 </head>
 <body>
     <!-- Custom Camera Access Modal -->
@@ -31,6 +34,7 @@
             <div class="brightness-track">
                 <div id="brightness-fill" class="brightness-fill"></div>
             </div>
+            <div id="gesture-status" class="gesture-status">Status: Ready</div>
         </div>
         <div class="video-container">
             <img id="video-feed" data-src="/video_feed" width="640" height="480" alt="Waiting for camera permission...">
@@ -40,6 +44,11 @@
     <script>
         let cameraStream = null;
         let backendMode = true;
+        let handTracker = null;
+        let trackingActive = false;
+        let trackingBusy = false;
+        let lastGestureCenter = null;
+        let stillFrames = 0;
 
         function getActiveCameraElement() {
             return document.getElementById('browser-preview') || document.getElementById('video-feed');
@@ -62,6 +71,109 @@
             if (brightnessFill) {
                 brightnessFill.style.width = brightness + '%';
             }
+        }
+
+        function setGestureStatus(text) {
+            var status = document.getElementById('gesture-status');
+            if (status) {
+                status.innerText = text;
+            }
+        }
+
+        function stopHandTracking() {
+            trackingActive = false;
+            trackingBusy = false;
+            lastGestureCenter = null;
+            stillFrames = 0;
+            handTracker = null;
+        }
+
+        async function startHandTracking(videoElement) {
+            if (trackingActive || !window.Hands) {
+                if (!window.Hands) {
+                    setGestureStatus('Status: Hand tracking unavailable');
+                }
+                return;
+            }
+
+            handTracker = new Hands({
+                locateFile: function(file) {
+                    return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + file;
+                }
+            });
+
+            handTracker.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.6
+            });
+
+            handTracker.onResults(function(results) {
+                var landmarks = results.multiHandLandmarks && results.multiHandLandmarks[0];
+
+                if (!landmarks) {
+                    lastGestureCenter = null;
+                    stillFrames = 0;
+                    setGestureStatus('Status: No hand detected');
+                    return;
+                }
+
+                var thumbTip = landmarks[4];
+                var indexTip = landmarks[8];
+                var centerX = (thumbTip.x + indexTip.x) / 2;
+                var centerY = (thumbTip.y + indexTip.y) / 2;
+
+                if (lastGestureCenter) {
+                    var movement = Math.hypot(centerX - lastGestureCenter.x, centerY - lastGestureCenter.y);
+                    if (movement < 0.012) {
+                        stillFrames += 1;
+                    } else {
+                        stillFrames = 0;
+                    }
+                }
+
+                lastGestureCenter = { x: centerX, y: centerY };
+
+                if (stillFrames >= 8) {
+                    setGestureStatus('Status: PAUSED');
+                    return;
+                }
+
+                var pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+                var targetBrightness = (pinchDistance - 0.03) / (0.30 - 0.03) * 100;
+                var currentBrightness = Number(document.getElementById('brightness-range').value);
+                var nextBrightness = currentBrightness + (targetBrightness - currentBrightness) * 0.35;
+
+                setGestureStatus('Status: Tracking');
+                applyBrightness(nextBrightness);
+            });
+
+            trackingActive = true;
+
+            async function processFrame() {
+                if (!trackingActive || !cameraStream || !videoElement || videoElement.readyState < 2 || !handTracker) {
+                    if (trackingActive) {
+                        requestAnimationFrame(processFrame);
+                    }
+                    return;
+                }
+
+                if (!trackingBusy) {
+                    trackingBusy = true;
+                    try {
+                        await handTracker.send({ image: videoElement });
+                    } catch (error) {
+                        setGestureStatus('Status: Tracking error');
+                    } finally {
+                        trackingBusy = false;
+                    }
+                }
+
+                requestAnimationFrame(processFrame);
+            }
+
+            requestAnimationFrame(processFrame);
         }
 
         document.addEventListener("DOMContentLoaded", function() {
@@ -105,6 +217,12 @@
                         
                         img.onload = function() {
                             backendMode = true;
+                            stopHandTracking();
+                            img.style.display = 'block';
+                            var existingPreview = document.getElementById('browser-preview');
+                            if (existingPreview) {
+                                existingPreview.remove();
+                            }
                             applyBrightness(document.getElementById('brightness-range').value);
                             var btn = document.getElementById('toggle-btn');
                             btn.innerText = 'Stop Camera';
@@ -160,6 +278,7 @@
                     preview.style.display = 'block';
                     preview.srcObject = stream;
                     applyBrightness(document.getElementById('brightness-range').value);
+                    startHandTracking(preview);
                     btn.innerText = 'Stop Camera';
                     btn.classList.remove('btn-off');
                     btn.removeAttribute('disabled');
@@ -182,11 +301,13 @@
                 btn.classList.add('btn-off');
                 applyBrightness(document.getElementById('brightness-range').value);
             } else if (!backendMode && cameraStream) {
+                stopHandTracking();
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
                 if (preview) {
                     preview.srcObject = null;
                     preview.style.display = 'none';
+                    preview.remove();
                 }
                 btn.innerText = 'Start Camera';
                 btn.classList.add('btn-off');
