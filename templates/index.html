@@ -25,6 +25,7 @@
         <h1>Gesture Brightness Control</h1>
         <p class="instructions">Pinch your index finger and thumb to adjust screen brightness.</p>
         <button id="toggle-btn" class="btn btn-off" onclick="toggleCamera()" disabled>Waiting for Camera...</button>
+        <p id="camera-status" class="instructions" style="display:none; margin-top:-6px;"></p>
         <p id="agent-status" class="instructions" style="display:none; margin-top:-6px;"></p>
         <div class="video-container">
             <div id="browser-stage" class="camera-stage" style="display:none;">
@@ -77,6 +78,21 @@
 
             status.style.display = 'block';
             status.innerText = message;
+        }
+
+        function setCameraStatus(message) {
+            var status = document.getElementById('camera-status');
+            if (!status) {
+                return;
+            }
+
+            if (message) {
+                status.style.display = 'block';
+                status.innerText = message;
+            } else {
+                status.style.display = 'none';
+                status.innerText = '';
+            }
         }
 
         function applyBrightness(value) {
@@ -308,6 +324,7 @@
             btn.innerText = 'Stop Camera';
             btn.classList.remove('btn-off');
             btn.removeAttribute('disabled');
+            setCameraStatus('Camera started.');
         }
 
         async function requestCameraAccess() {
@@ -348,9 +365,11 @@
                 document.getElementById('browser-stage').style.display = 'none';
                 btn.innerText = 'Start Camera';
                 btn.classList.add('btn-off');
+                setCameraStatus('Camera stopped.');
                 return;
             }
 
+            setCameraStatus('');
             requestCameraAccess();
         }
 
