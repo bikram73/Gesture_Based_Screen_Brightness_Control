@@ -164,7 +164,7 @@ video {
     padding: 20px 30px;
     border-radius: 10px;
     margin: 30px auto;
-    max-width: 600px;
+    max-width: 1000px;
     line-height: 1.6;
     color: #dddddd;
     text-align: left;
@@ -242,6 +242,42 @@ a.btn-start:hover {
 
 .mobile-camera-help li {
     margin-bottom: 6px;
+}
+
+/* Home Page Table Styles */
+.project-details table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+.project-details table tr {
+    border: 1px solid #555;
+}
+
+.project-details table th,
+.project-details table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #555;
+}
+
+.project-details table th {
+    background-color: #333;
+    font-weight: 600;
+    color: #00bcd4;
+}
+
+.project-details table tr:nth-child(even) {
+    background-color: #232323;
+}
+
+.project-details code {
+    background-color: #1a1a1a;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #80deea;
+    font-family: 'Courier New', monospace;
 }
 
 /* Loading Spinner */

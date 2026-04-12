@@ -27,7 +27,49 @@
             <h3>⚠️ Important Note</h3>
             <p>Please ensure you grant your browser permission to access your webcam. The application requires an active camera feed to detect your hand gestures.</p>
 
-            <p>Click the button below to launch the camera interface and start controlling your brightness hands-free!</p>
+            <h3>🏗️ Deployment Architecture</h3>
+            <p>This application uses a split architecture for maximum flexibility:</p>
+            <table>
+                <tr>
+                    <th>Component</th>
+                    <th>Runs On</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td><strong>Web UI</strong></td>
+                    <td>Netlify (Cloud)</td>
+                    <td>Camera feed + hand gesture detection</td>
+                </tr>
+                <tr>
+                    <td><strong>Local Agent</strong></td>
+                    <td>Your Desktop/Laptop</td>
+                    <td>Receives brightness values + controls OS brightness</td>
+                </tr>
+            </table>
+
+            <h3>📱 For Desktop Users (System Brightness Control)</h3>
+            <p>To control your <strong>actual system brightness</strong>, you must also run the local brightness agent on your computer:</p>
+            <ol style="text-align: left; line-height: 1.8;">
+                <li>Download or clone this project to your local machine.</li>
+                <li>Install Python dependencies: <code>pip install -r requirements.txt</code></li>
+                <li>Start the local brightness agent: <code>python local_agent.py</code></li>
+                <li>The agent will run on <code>https://screen-brightness-control.netlify.app/app</code> or <code>http://127.0.0.1:5055</code> and accept brightness commands from this web app.</li>
+                <li>Open this site in your browser and grant camera permission. Your gestures will now control your system brightness!</li>
+            </ol>
+
+            <h3>📱 For Mobile Users</h3>
+            <p>Mobile browsers cannot directly control system brightness due to browser security restrictions. Your gesture controls will adjust the <strong>page brightness</strong> visually for demonstration purposes.</p>
+
+            <h3>💡 Why This Architecture?</h3>
+            <ul style="text-align: left;">
+                <li><strong>Cloud-hosted UI:</strong> Use the app from anywhere without running a server.</li>
+                <li><strong>Local agent:</strong> Keeps system brightness control on your machine where it can access OS APIs.</li>
+                <li><strong>Privacy:</strong> Your camera feed never leaves your browser—all processing happens locally.</li>
+            </ul>
+
+            <p style="margin-top: 20px; color: #aaa; font-size: 0.95em;"><strong>📌 Quick Setup for First-Time Users:</strong> If running locally on <code>http://127.0.0.1:5000</code>, just run the app without needing the cloud—everything works on your machine!</p>
+
+            <p style="margin-top: 15px;">Click the button below to launch the camera interface and start controlling your brightness hands-free!</p>
         </div>
         <a href="/app" class="btn btn-start">Launch Application</a>
     </div>
