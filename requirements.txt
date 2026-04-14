@@ -2,4 +2,4 @@ Flask
 opencv-python
 mediapipe
 screen-brightness-control
-numpy
+numpy>=1.24,<2

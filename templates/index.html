@@ -215,23 +215,45 @@
                 context.stroke();
             }
 
-            context.fillStyle = '#39ff14';
-            context.font = 'bold 34px Segoe UI, sans-serif';
-            context.fillText('Brightness: ' + Math.round(brightness) + '%', 20, 40);
+            // Keep UI overlays inside a centered safe zone so they remain visible
+            // even when the video is side-cropped by object-fit: cover.
+            var brightnessLabel = 'Brightness: ' + Math.round(brightness) + '%';
+            var centerX = canvas.width / 2;
+            var topY = Math.max(26, canvas.height * 0.07);
+            var panelWidth = Math.min(canvas.width * 0.72, 450);
+            var panelHeight = Math.max(54, canvas.height * 0.12);
+            var panelX = centerX - panelWidth / 2;
+            var panelY = topY - 10;
 
-            var barX = 30;
-            var barY = 90;
-            var barHeight = 220;
-            var fillHeight = (brightness / 100) * barHeight;
+            context.fillStyle = 'rgba(0, 0, 0, 0.55)';
+            context.fillRect(panelX, panelY, panelWidth, panelHeight);
+            context.strokeStyle = 'rgba(57, 255, 20, 0.95)';
+            context.lineWidth = 2;
+            context.strokeRect(panelX, panelY, panelWidth, panelHeight);
+
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillStyle = '#39ff14';
+            context.font = 'bold 30px Segoe UI, sans-serif';
+            context.fillText(brightnessLabel, centerX, panelY + panelHeight / 2);
+
+            var barWidth = Math.min(canvas.width * 0.62, 390);
+            var barHeight = 18;
+            var barX = centerX - barWidth / 2;
+            var barY = panelY + panelHeight + 12;
+            var fillWidth = (brightness / 100) * barWidth;
             var color = 'rgb(' + Math.round(255 - (brightness * 2.55)) + ',' + Math.round(brightness * 2.55) + ',0)';
 
-            context.fillStyle = 'rgba(0, 0, 0, 0.35)';
-            context.fillRect(barX - 10, barY - 10, 40, barHeight + 20);
-            context.strokeStyle = '#39ff14';
-            context.lineWidth = 3;
-            context.strokeRect(barX - 5, barY - 5, 30, barHeight + 10);
+            context.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            context.fillRect(barX, barY, barWidth, barHeight);
+            context.strokeStyle = 'rgba(57, 255, 20, 0.95)';
+            context.lineWidth = 2;
+            context.strokeRect(barX, barY, barWidth, barHeight);
             context.fillStyle = color;
-            context.fillRect(barX, barY + (barHeight - fillHeight), 20, fillHeight);
+            context.fillRect(barX, barY, fillWidth, barHeight);
+
+            context.textAlign = 'left';
+            context.textBaseline = 'alphabetic';
         }
 
         function stopHandTracking() {
